@@ -1,0 +1,61 @@
+import Ember from 'ember';
+import {lists as ConfigLists} from 'go5-admin-panel/config/common';
+
+export default Ember.Service.extend({
+	ajaxService: Ember.inject.service('ajax'),
+
+	findAll (page = 1) {
+		return this.get('ajaxService').request('recognition/recognition-applications', {
+			data: {
+				page: page,
+				size: ConfigLists.pageSize,
+			}
+		})
+		.then((data) => {
+			return {
+				 results: data.applications.map((program) => {
+					return {
+						id: program.links.program,
+						name: program.name
+					};
+				}),
+				meta: data.meta
+			};
+		});
+	},
+	findAllWithPagination () {
+		let allPrograms = [],
+			fetch = (page = 1) => {
+				return this.findAll(page)
+				.then(({results: programs, meta}) => {
+					allPrograms.push(...programs);
+
+					if (allPrograms.length < meta.applications.pagination.total) {
+						return fetch(page + 1);
+					}
+
+					return undefined;
+				});
+			};
+
+		return fetch()
+			.then(() => {
+				return allPrograms;
+			});
+	},
+	findProgram (programId) {
+		return this.get('ajaxService').request('recognition/programs/' + programId, {
+
+		})
+		.then((data) => {
+			let currency = data.programs['account-schema'];
+
+			return {
+				  reasons: data.programs['has-reasons'],
+				  approval: data.programs['approval-required'],
+				  currency: currency !== 'none'
+			};
+		});
+	},
+});
+

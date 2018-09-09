@@ -1,0 +1,74 @@
+import Ember from 'ember';
+
+export default Ember.Component.extend({
+	tagName: '',
+
+	eventBusService: Ember.inject.service('event-bus'),
+	recognitionService: Ember.inject.service('business/recognition'),
+	i18n: Ember.inject.service('i18n'),
+
+	defaultValue: '',
+	fetchingData: false,
+	validators: {
+		programValidator: {
+			'presence': {
+				message: 'commons.validation_errors.required'
+			}
+		},
+	},
+	onFetchDataChange: Ember.observer('fetchingData', function () {
+		if (this.get('fetchingData') && this.get('on-fetch')) {
+			this.get('on-fetch')({done: false});
+		} else if (!this.get('fetchingData') && this.get('on-fetch')) {
+			this.get('on-fetch')({done: true});
+		}
+	}),
+	programChannel: Ember.computed('channel', function () {
+		return `${this.get('channel')}_program`;
+	}),
+	onFetchedPrograms: Ember.observer('programs', function onFetchedPrograms () {
+		let selectedProgramId = null;
+
+		if (this.get('programs').length) {
+			selectedProgramId = this.get('programs')[0].id;
+			this.set('defaultValue', this.get('programs')[0].name);
+			this.selectedProgram();
+			this.set('isSelectDisabled', false);
+		} else {
+			this.set('defaultValue', this.get('i18n').t('analytics.gorecognition.components.programs.label.empty_select'));
+			this.set('isSelectDisabled', true);
+		}
+
+		this.get('on-select')(selectedProgramId);
+	}),
+	selectedProgram () {
+		this.get('eventBusService').triggerMessage(this.get('programChannel'), {
+			type: 'setValue',
+			content: this.get('programs')[0].id
+		});
+	},
+	getPrograms () {
+		this.set('isLoadingPrograms', true);
+		this.get('recognitionService').findAllWithPagination()
+			.then((data = []) => {
+				this.set('programs', window._.orderBy(data, ['name'], ['asc']));
+			})
+			.catch(() => {
+				this.set('programs', []);
+			})
+			.finally(() => {
+				this.set('isLoadingPrograms', false);
+			});
+	},
+
+	init () {
+		this._super(...arguments);
+		this.getPrograms();
+	},
+	actions: {
+		setProgramValue (programId) {
+			this.get('on-select')(programId);
+		},
+	}
+});
+

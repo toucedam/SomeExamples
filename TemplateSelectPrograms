@@ -1,0 +1,14 @@
+{{#unless isLoadingPrograms}}
+{{x-select-material
+	class=(if isSelectDisabled "inactive" "active")
+	property="program"
+	channel=channel
+	validator=validators.programValidator
+	options=programs
+	value=programs
+	value-channel=programChannel
+	chooseLabel=defaultValue
+	on-internal-value-change=(action "setProgramValue")
+}}
+{{/unless}}
+
